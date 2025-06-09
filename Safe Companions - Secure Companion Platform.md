@@ -41,7 +41,7 @@ For detailed deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## 🔐 Default Credentials
 
-- **Admin**: admin@safecompanions.com / admin123
+- **Admin**: admin@safecompanions.com / password123
 - **Escort**: escort@example.com / password123  
 - **Seeker**: seeker@example.com / password123
 
