@@ -1,0 +1,1060 @@
+{# Inherit base.html layout #}
+{% extends "base.html" %}
+
+{# Website title #}
+{% block title %}Admin Panel - Safe Companions{% endblock %}
+
+{# Main content #}
+{% block content %}
+<div class="container-fluid mt-3">
+    <div class="row">
+        {# Admin Sidebar #}
+        <div class="col-md-2 bg-light min-vh-100">
+            <div class="py-3">
+                <h5 class="text-center">Admin Panel</h5>
+                <hr>
+                <div class="list-group list-group-flush">
+                    <a href="#overview" class="list-group-item list-group-item-action active" data-bs-toggle="pill">
+                        <i class="bi bi-speedometer2"></i> Overview
+                    </a>
+                    <a href="#users" class="list-group-item list-group-item-action" data-bs-toggle="pill">
+                        <i class="bi bi-people"></i> Users
+                    </a>
+                    <a href="#reports" class="list-group-item list-group-item-action" data-bs-toggle="pill">
+                        <i class="bi bi-flag"></i> Reports
+                        {% if pending_reports_count > 0 %}
+                        <span class="badge bg-danger float-end">{{ pending_reports_count }}</span>
+                        {% endif %}
+                    </a>
+                    <a href="#logs" class="list-group-item list-group-item-action" data-bs-toggle="pill">
+                        <i class="bi bi-file-text"></i> Audit Logs
+                    </a>
+                    <a href="#rbac" class="list-group-item list-group-item-action" data-bs-toggle="pill">
+                        <i class="bi bi-shield-lock"></i> RBAC
+                    </a>
+                    <a href="#settings" class="list-group-item list-group-item-action" data-bs-toggle="pill">
+                        <i class="bi bi-gear"></i> Settings
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        {# Main Content Area #}
+        <div class="col-md-10">
+            <div class="tab-content py-3">
+                {# Overview Tab #}
+                <div class="tab-pane fade show active" id="overview">
+                    <h4 class="mb-4">System Overview</h4>
+                    
+                    {# Key Metrics #}
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h3>{{ metrics.total_users }}</h3>
+                                    <p class="text-muted">Total Users</p>
+                                    <small class="text-success">+{{ metrics.users_growth }}% this month</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h3>{{ metrics.active_bookings }}</h3>
+                                    <p class="text-muted">Active Bookings</p>
+                                    <small class="text-info">{{ metrics.bookings_today }} today</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h3>${{ metrics.revenue_month }}</h3>
+                                    <p class="text-muted">Revenue (Month)</p>
+                                    <small class="text-success">+{{ metrics.revenue_growth }}%</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <h3>{{ metrics.system_health }}%</h3>
+                                    <p class="text-muted">System Health</p>
+                                    <small class="text-success">All systems operational</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# Charts #}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">User Activity (7 days)</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="userActivityChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Booking Statistics</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="bookingStatsChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {# Users Tab #}
+                <div class="tab-pane fade" id="users">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4>User Management</h4>
+                        <div>
+                            <button class="btn btn-success" onclick="exportUsers()">
+                                <i class="bi bi-download"></i> Export
+                            </button>
+                        </div>
+                    </div>
+
+                    {# User Filters #}
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <form id="user-filter-form" class="row g-3">
+                                <div class="col-md-3">
+                                    <input type="text" class="form-control" placeholder="Search by name or email..." 
+                                           name="search" id="user-search">
+                                </div>
+                                <div class="col-md-2">
+                                    <select class="form-select" name="role" id="user-role-filter">
+                                        <option value="">All Roles</option>
+                                        <option value="seeker">Seekers</option>
+                                        <option value="escort">Escorts</option>
+                                        <option value="admin">Admins</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <select class="form-select" name="status" id="user-status-filter">
+                                        <option value="">All Status</option>
+                                        <option value="active">Active</option>
+                                        <option value="inactive">Inactive</option>
+                                        <option value="suspended">Suspended</option>
+                                        <option value="banned">Banned</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <input type="date" class="form-control" name="joined_after" 
+                                           placeholder="Joined after...">
+                                </div>
+                                <div class="col-md-3">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="bi bi-search"></i> Search
+                                    </button>
+                                    <button type="reset" class="btn btn-secondary">
+                                        <i class="bi bi-arrow-clockwise"></i> Reset
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    {# Users Table #}
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="users-table">
+                                    <thead>
+                                        <tr>
+                                            <th>
+                                                <input type="checkbox" class="form-check-input" id="select-all-users">
+                                            </th>
+                                            <th>ID</th>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Role</th>
+                                            <th>Status</th>
+                                            <th>Joined</th>
+                                            <th>Last Active</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for user in users %}
+                                        <tr>
+                                            <td>
+                                                <input type="checkbox" class="form-check-input user-checkbox" 
+                                                       value="{{ user.id }}">
+                                            </td>
+                                            <td>#{{ user.id }}</td>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <img src="{{ user.profile_photo }}" class="rounded-circle me-2" 
+                                                         width="30" height="30" alt="{{ user.display_name }}">
+                                                    {{ user.display_name }}
+                                                </div>
+                                            </td>
+                                            <td>{{ user.email }}</td>
+                                            <td>
+                                                <span class="badge bg-{{ user.role_color }}">{{ user.role|title }}</span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-{{ user.status_color }}">{{ user.status|title }}</span>
+                                            </td>
+                                            <td>{{ user.joined_date }}</td>
+                                            <td>{{ user.last_active }}</td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary" onclick="viewUser({{ user.id }})" 
+                                                            title="View">
+                                                        <i class="bi bi-eye"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-warning" onclick="editUser({{ user.id }})" 
+                                                            title="Edit">
+                                                        <i class="bi bi-pencil"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-danger" onclick="deleteUser({{ user.id }})" 
+                                                            title="Delete">
+                                                        <i class="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            {# Bulk Actions #}
+                            <div class="mt-3">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <select class="form-select form-select-sm d-inline-block w-auto" id="bulk-action">
+                                            <option value="">Bulk Actions</option>
+                                            <option value="suspend">Suspend Selected</option>
+                                            <option value="ban">Ban Selected</option>
+                                            <option value="delete">Delete Selected</option>
+                                            <option value="activate">Activate Selected</option>
+                                        </select>
+                                        <button class="btn btn-sm btn-primary ms-2" onclick="executeBulkAction()">
+                                            Apply
+                                        </button>
+                                    </div>
+                                    <div class="col-md-6">
+                                        {# Pagination #}
+                                        <nav aria-label="Users pagination">
+                                            <ul class="pagination pagination-sm justify-content-end mb-0">
+                                                <li class="page-item disabled">
+                                                    <a class="page-link" href="#">Previous</a>
+                                                </li>
+                                                <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                                                <li class="page-item"><a class="page-link" href="#">2</a></li>
+                                                <li class="page-item"><a class="page-link" href="#">3</a></li>
+                                                <li class="page-item">
+                                                    <a class="page-link" href="#">Next</a>
+                                                </li>
+                                            </ul>
+                                        </nav>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {# Reports Tab #}
+                <div class="tab-pane fade" id="reports">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4>User Reports</h4>
+                        <div>
+                            <span class="badge bg-danger">{{ pending_reports_count }} Pending</span>
+                            <span class="badge bg-warning">{{ reviewing_reports_count }} Under Review</span>
+                            <span class="badge bg-success">{{ resolved_reports_count }} Resolved</span>
+                        </div>
+                    </div>
+
+                    {# Report Filters #}
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <select class="form-select" id="report-status-filter" onchange="filterReports()">
+                                        <option value="">All Status</option>
+                                        <option value="pending">Pending</option>
+                                        <option value="reviewing">Under Review</option>
+                                        <option value="resolved">Resolved</option>
+                                        <option value="dismissed">Dismissed</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" id="report-type-filter" onchange="filterReports()">
+                                        <option value="">All Types</option>
+                                        <option value="inappropriate_messages">Inappropriate Messages</option>
+                                        <option value="harassment">Harassment</option>
+                                        <option value="spam">Spam</option>
+                                        <option value="fake_profile">Fake Profile</option>
+                                        <option value="no_show">No Show</option>
+                                        <option value="safety_concern">Safety Concern</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <input type="date" class="form-control" id="report-date-filter" onchange="filterReports()">
+                                </div>
+                                <div class="col-md-3">
+                                    <input type="text" class="form-control" placeholder="Search reports..." 
+                                           id="report-search" onkeyup="filterReports()">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# Reports List #}
+                    <div id="reports-container">
+                        {% for report in reports %}
+                        <div class="card mb-3 report-item" data-report-id="{{ report.id }}">
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-8">
+                                        <h6>Report #{{ report.id }}</h6>
+                                        <p class="mb-2">
+                                            <strong>Reporter:</strong> {{ report.reporter_name }} ({{ report.reporter_email }})<br>
+                                            <strong>Reported User:</strong> {{ report.reported_name }} ({{ report.reported_email }})<br>
+                                            <strong>Type:</strong> <span class="badge bg-secondary">{{ report.type|replace('_', ' ')|title }}</span><br>
+                                            <strong>Date:</strong> {{ report.created_at }}
+                                        </p>
+                                        <p class="mb-2"><strong>Details:</strong><br>{{ report.details }}</p>
+                                        {% if report.evidence %}
+                                        <p class="mb-0">
+                                            <strong>Evidence:</strong> 
+                                            <a href="#" onclick="viewEvidence({{ report.id }})">View attachments</a>
+                                        </p>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-4 text-end">
+                                        <p class="mb-2">
+                                            <strong>Status:</strong> 
+                                            <span class="badge bg-{{ report.status_color }}">{{ report.status|title }}</span>
+                                        </p>
+                                        {% if report.status == 'pending' %}
+                                        <div class="btn-group">
+                                            <button class="btn btn-sm btn-success" onclick="reviewReport({{ report.id }})">
+                                                <i class="bi bi-check-circle"></i> Review
+                                            </button>
+                                            <button class="btn btn-sm btn-danger" onclick="dismissReport({{ report.id }})">
+                                                <i class="bi bi-x-circle"></i> Dismiss
+                                            </button>
+                                        </div>
+                                        {% elif report.status == 'reviewing' %}
+                                        <div class="mt-2">
+                                            <select class="form-select form-select-sm mb-2" id="action-{{ report.id }}">
+                                                <option value="">Select Action...</option>
+                                                <option value="warning">Send Warning</option>
+                                                <option value="suspend">Suspend User</option>
+                                                <option value="ban">Ban User</option>
+                                                <option value="no_action">No Action</option>
+                                            </select>
+                                            <button class="btn btn-sm btn-primary w-100" 
+                                                    onclick="executeReportAction({{ report.id }})">
+                                                Execute Action
+                                            </button>
+                                        </div>
+                                        {% else %}
+                                        <p class="text-muted">
+                                            <strong>Resolved by:</strong> {{ report.resolved_by }}<br>
+                                            <strong>Action:</strong> {{ report.action_taken }}
+                                        </p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                {# Audit Logs Tab #}
+                <div class="tab-pane fade" id="logs">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4>Audit Logs</h4>
+                        <button class="btn btn-success" onclick="exportLogs()">
+                            <i class="bi bi-download"></i> Export Logs
+                        </button>
+                    </div>
+
+                    {# Log Filters #}
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-2">
+                                    <select class="form-select" id="log-level-filter">
+                                        <option value="">All Levels</option>
+                                        <option value="info">Info</option>
+                                        <option value="warning">Warning</option>
+                                        <option value="error">Error</option>
+                                        <option value="critical">Critical</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" id="log-category-filter">
+                                        <option value="">All Categories</option>
+                                        <option value="auth">Authentication</option>
+                                        <option value="user">User Management</option>
+                                        <option value="booking">Bookings</option>
+                                        <option value="payment">Payments</option>
+                                        <option value="security">Security</option>
+                                        <option value="system">System</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <input type="date" class="form-control" id="log-date-from" placeholder="From">
+                                </div>
+                                <div class="col-md-2">
+                                    <input type="date" class="form-control" id="log-date-to" placeholder="To">
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="log-search" 
+                                               placeholder="Search logs...">
+                                        <button class="btn btn-primary" onclick="searchLogs()">
+                                            <i class="bi bi-search"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {# Logs Table #}
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover" style="font-size: 0.875rem;">
+                                    <thead>
+                                        <tr>
+                                            <th>Timestamp</th>
+                                            <th>Level</th>
+                                            <th>Category</th>
+                                            <th>User</th>
+                                            <th>IP Address</th>
+                                            <th>Action</th>
+                                            <th>Details</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="logs-tbody">
+                                        {% for log in audit_logs %}
+                                        <tr>
+                                            <td>{{ log.timestamp }}</td>
+                                            <td>
+                                                <span class="badge bg-{{ log.level_color }}">{{ log.level|upper }}</span>
+                                            </td>
+                                            <td>{{ log.category }}</td>
+                                            <td>{{ log.user_email or 'System' }}</td>
+                                            <td>{{ log.ip_address }}</td>
+                                            <td>{{ log.action }}</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-link p-0" onclick="viewLogDetails({{ log.id }})">
+                                                    View
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            {# Load More #}
+                            <div class="text-center mt-3">
+                                <button class="btn btn-sm btn-outline-primary" onclick="loadMoreLogs()">
+                                    Load More Logs
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {# RBAC Tab #}
+                <div class="tab-pane fade" id="rbac">
+                    <h4 class="mb-4">Role-Based Access Control</h4>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            {# Roles List #}
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Roles</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="list-group">
+                                        <a href="#" class="list-group-item list-group-item-action active" 
+                                           onclick="loadRolePermissions('admin')">
+                                            <div class="d-flex justify-content-between">
+                                                <span><i class="bi bi-shield-fill"></i> Admin</span>
+                                                <span class="badge bg-primary">{{ role_counts.admin }}</span>
+                                            </div>
+                                        </a>
+                                        <a href="#" class="list-group-item list-group-item-action" 
+                                           onclick="loadRolePermissions('escort')">
+                                            <div class="d-flex justify-content-between">
+                                                <span><i class="bi bi-person-badge"></i> Escort</span>
+                                                <span class="badge bg-primary">{{ role_counts.escort }}</span>
+                                            </div>
+                                        </a>
+                                        <a href="#" class="list-group-item list-group-item-action" 
+                                           onclick="loadRolePermissions('seeker')">
+                                            <div class="d-flex justify-content-between">
+                                                <span><i class="bi bi-person"></i> Seeker</span>
+                                                <span class="badge bg-primary">{{ role_counts.seeker }}</span>
+                                            </div>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-8">
+                            {# Permissions #}
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Permissions for <span id="selected-role">Admin</span></h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="permissions-list">
+                                        {# Permissions loaded dynamically #}
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" checked disabled>
+                                            <label class="form-check-label">
+                                                <strong>User Management</strong> - Create, read, update, delete users
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" checked disabled>
+                                            <label class="form-check-label">
+                                                <strong>Report Management</strong> - Review and action user reports
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" checked disabled>
+                                            <label class="form-check-label">
+                                                <strong>System Settings</strong> - Modify system configuration
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" checked disabled>
+                                            <label class="form-check-label">
+                                                <strong>Audit Logs</strong> - View all system logs
+                                            </label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" checked disabled>
+                                            <label class="form-check-label">
+                                                <strong>RBAC Management</strong> - Manage roles and permissions
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <hr>
+                                    <button class="btn btn-primary" onclick="savePermissions()" disabled>
+                                        Save Permissions
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {# Settings Tab #}
+                <div class="tab-pane fade" id="settings">
+                    <h4 class="mb-4">System Settings</h4>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {# General Settings #}
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h6 class="mb-0">General Settings</h6>
+                                </div>
+                                <div class="card-body">
+                                    <form id="general-settings-form">
+                                        <div class="mb-3">
+                                            <label for="site-name" class="form-label">Site Name</label>
+                                            <input type="text" class="form-control" id="site-name" 
+                                                   value="Safe Companions">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="site-url" class="form-label">Site URL</label>
+                                            <input type="url" class="form-control" id="site-url" 
+                                                   value="https://safecompanions.com">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="contact-email" class="form-label">Contact Email</label>
+                                            <input type="email" class="form-control" id="contact-email" 
+                                                   value="support@safecompanions.com">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="timezone" class="form-label">Default Timezone</label>
+                                            <select class="form-select" id="timezone">
+                                                <option value="UTC">UTC</option>
+                                                <option value="America/New_York">Eastern Time</option>
+                                                <option value="America/Chicago">Central Time</option>
+                                                <option value="America/Denver">Mountain Time</option>
+                                                <option value="America/Los_Angeles">Pacific Time</option>
+                                            </select>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary">Save General Settings</button>
+                                    </form>
+                                </div>
+                            </div>
+
+                            {# Security Settings #}
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Security Settings</h6>
+                                </div>
+                                <div class="card-body">
+                                    <form id="security-settings-form">
+                                        <div class="mb-3">
+                                            <label for="session-timeout" class="form-label">Session Timeout (minutes)</label>
+                                            <input type="number" class="form-control" id="session-timeout" 
+                                                   value="15" min="5" max="60">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="max-login-attempts" class="form-label">Max Login Attempts</label>
+                                            <input type="number" class="form-control" id="max-login-attempts" 
+                                                   value="5" min="3" max="10">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="lockout-duration" class="form-label">Lockout Duration (minutes)</label>
+                                            <input type="number" class="form-control" id="lockout-duration" 
+                                                   value="15" min="5" max="60">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="password-expiry" class="form-label">Password Expiry (days)</label>
+                                            <input type="number" class="form-control" id="password-expiry" 
+                                                   value="90" min="30" max="365">
+                                        </div>
+                                        <div class="form-check mb-3">
+                                            <input class="form-check-input" type="checkbox" id="require-2fa" checked>
+                                            <label class="form-check-label" for="require-2fa">
+                                                Require 2FA for Admin accounts
+                                            </label>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary">Save Security Settings</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            {# Email Settings #}
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Email Settings</h6>
+                                </div>
+                                <div class="card-body">
+                                    <form id="email-settings-form">
+                                        <div class="mb-3">
+                                            <label for="smtp-host" class="form-label">SMTP Host</label>
+                                            <input type="text" class="form-control" id="smtp-host" 
+                                                   value="smtp.gmail.com">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="smtp-port" class="form-label">SMTP Port</label>
+                                            <input type="number" class="form-control" id="smtp-port" 
+                                                   value="587">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="smtp-username" class="form-label">SMTP Username</label>
+                                            <input type="text" class="form-control" id="smtp-username" 
+                                                   value="noreply@safecompanions.com">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="smtp-password" class="form-label">SMTP Password</label>
+                                            <input type="password" class="form-control" id="smtp-password" 
+                                                   placeholder="••••••••">
+                                        </div>
+                                        <button type="submit" class="btn btn-primary">Save Email Settings</button>
+                                        <button type="button" class="btn btn-secondary ms-2" onclick="testEmail()">
+                                            Test Email
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+
+                            {# Maintenance Mode #}
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Maintenance Mode</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="form-check form-switch mb-3">
+                                        <input class="form-check-input" type="checkbox" id="maintenance-mode">
+                                        <label class="form-check-label" for="maintenance-mode">
+                                            Enable Maintenance Mode
+                                        </label>
+                                    </div>
+                                    <div class="mb-3" id="maintenance-message-group" style="display: none;">
+                                        <label for="maintenance-message" class="form-label">Maintenance Message</label>
+                                        <textarea class="form-control" id="maintenance-message" rows="3">
+We're currently performing scheduled maintenance. We'll be back shortly!
+                                        </textarea>
+                                    </div>
+                                    <button class="btn btn-warning" onclick="saveMaintenanceMode()">
+                                        Save Maintenance Settings
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# User Details Modal #}
+<div class="modal fade" id="userDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">User Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="userDetailsContent">
+                {# Content loaded dynamically #}
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Log Details Modal #}
+<div class="modal fade" id="logDetailsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Log Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="logDetailsContent">
+                {# Content loaded dynamically #}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Initialize charts
+document.addEventListener('DOMContentLoaded', function() {
+    // User Activity Chart
+    const userActivityCtx = document.getElementById('userActivityChart');
+    if (userActivityCtx) {
+        new Chart(userActivityCtx.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: {{ activity_labels|tojson }},
+                datasets: [{
+                    label: 'Active Users',
+                    data: {{ activity_data|tojson }},
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
+
+    // Booking Stats Chart
+    const bookingStatsCtx = document.getElementById('bookingStatsChart');
+    if (bookingStatsCtx) {
+        new Chart(bookingStatsCtx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Completed', 'Active', 'Cancelled'],
+                datasets: [{
+                    data: {{ booking_stats|tojson }},
+                    backgroundColor: ['#28a745', '#007bff', '#dc3545']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
+    
+    // Maintenance mode toggle
+    document.getElementById('maintenance-mode')?.addEventListener('change', function() {
+        document.getElementById('maintenance-message-group').style.display = 
+            this.checked ? 'block' : 'none';
+    });
+});
+
+// User Management Functions
+function viewUser(userId) {
+    fetch(`/api/admin/users/${userId}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('userDetailsContent').innerHTML = `
+                <div class="row">
+                    <div class="col-md-4 text-center">
+                        <img src="${data.profile_photo}" class="rounded-circle mb-3" 
+                             width="150" height="150" alt="${data.display_name}">
+                        <h5>${data.display_name}</h5>
+                        <p class="text-muted">${data.email}</p>
+                        <span class="badge bg-${data.role_color}">${data.role}</span>
+                        <span class="badge bg-${data.status_color}">${data.status}</span>
+                    </div>
+                    <div class="col-md-8">
+                        <h6>Account Information</h6>
+                        <table class="table table-sm">
+                            <tr><td>User ID:</td><td>#${data.id}</td></tr>
+                            <tr><td>Joined:</td><td>${data.joined_date}</td></tr>
+                            <tr><td>Last Active:</td><td>${data.last_active}</td></tr>
+                            <tr><td>Total Bookings:</td><td>${data.total_bookings}</td></tr>
+                            <tr><td>Total Spent/Earned:</td><td>$${data.total_amount}</td></tr>
+                            <tr><td>Profile Completion:</td><td>${data.profile_completion}%</td></tr>
+                        </table>
+                        <h6 class="mt-3">Activity Summary</h6>
+                        <ul>
+                            <li>Login Count: ${data.login_count}</li>
+                            <li>Failed Login Attempts: ${data.failed_logins}</li>
+                            <li>Reports Filed: ${data.reports_filed}</li>
+                            <li>Reports Against: ${data.reports_against}</li>
+                        </ul>
+                    </div>
+                </div>
+            `;
+            new bootstrap.Modal(document.getElementById('userDetailsModal')).show();
+        });
+}
+
+function deleteUser(userId) {
+    if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+        fetch(`/api/admin/users/${userId}`, {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                reason: prompt('Please provide a reason for deletion:')
+            })
+        }).then(response => {
+            if (response.ok) {
+                alert('User deleted successfully');
+                location.reload();
+            }
+        });
+    }
+}
+
+function executeBulkAction() {
+    const action = document.getElementById('bulk-action').value;
+    if (!action) {
+        alert('Please select an action');
+        return;
+    }
+    
+    const selectedUsers = Array.from(document.querySelectorAll('.user-checkbox:checked'))
+        .map(cb => cb.value);
+    
+    if (selectedUsers.length === 0) {
+        alert('Please select at least one user');
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to ${action} ${selectedUsers.length} users?`)) {
+        fetch('/api/admin/users/bulk-action', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                action: action,
+                user_ids: selectedUsers
+            })
+        }).then(response => {
+            if (response.ok) {
+                location.reload();
+            }
+        });
+    }
+}
+
+// Report Management Functions
+function reviewReport(reportId) {
+    document.querySelector(`[data-report-id="${reportId}"] .badge`).textContent = 'Under Review';
+    document.querySelector(`[data-report-id="${reportId}"] .badge`).className = 'badge bg-warning';
+    
+    fetch(`/api/admin/reports/${reportId}/review`, {
+        method: 'POST'
+    });
+}
+
+function executeReportAction(reportId) {
+    const action = document.getElementById(`action-${reportId}`).value;
+    if (!action) {
+        alert('Please select an action');
+        return;
+    }
+    
+    fetch(`/api/admin/reports/${reportId}/action`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action: action})
+    }).then(response => {
+        if (response.ok) {
+            alert('Action executed successfully');
+            location.reload();
+        }
+    });
+}
+
+// Audit Log Functions
+function viewLogDetails(logId) {
+    fetch(`/api/admin/logs/${logId}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('logDetailsContent').innerHTML = `
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+            new bootstrap.Modal(document.getElementById('logDetailsModal')).show();
+        });
+}
+
+function exportLogs() {
+    const params = new URLSearchParams({
+        level: document.getElementById('log-level-filter').value,
+        category: document.getElementById('log-category-filter').value,
+        from: document.getElementById('log-date-from').value,
+        to: document.getElementById('log-date-to').value
+    });
+    
+    window.open(`/api/admin/logs/export?${params}`);
+}
+
+// RBAC Functions
+function loadRolePermissions(role) {
+    // Update active state
+    document.querySelectorAll('.list-group-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    event.target.closest('.list-group-item').classList.add('active');
+    
+    document.getElementById('selected-role').textContent = role.charAt(0).toUpperCase() + role.slice(1);
+    
+    // Load permissions for role
+    // This would be an API call in real implementation
+}
+
+// Settings Functions
+document.getElementById('general-settings-form')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    // Save general settings
+    alert('General settings saved successfully');
+});
+
+document.getElementById('security-settings-form')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    // Save security settings
+    alert('Security settings saved successfully');
+});
+
+document.getElementById('email-settings-form')?.addEventListener('submit', function(e) {
+    e.preventDefault();
+    // Save email settings
+    alert('Email settings saved successfully');
+});
+
+function testEmail() {
+    fetch('/api/admin/test-email', {
+        method: 'POST'
+    }).then(response => {
+        if (response.ok) {
+            alert('Test email sent successfully');
+        } else {
+            alert('Failed to send test email');
+        }
+    });
+}
+
+function saveMaintenanceMode() {
+    const enabled = document.getElementById('maintenance-mode').checked;
+    const message = document.getElementById('maintenance-message').value;
+    
+    fetch('/api/admin/maintenance', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            enabled: enabled,
+            message: message
+        })
+    }).then(response => {
+        if (response.ok) {
+            alert('Maintenance settings saved');
+        }
+    });
+}
+
+// Select all users checkbox
+document.getElementById('select-all-users')?.addEventListener('change', function() {
+    document.querySelectorAll('.user-checkbox').forEach(cb => {
+        cb.checked = this.checked;
+    });
+});
+</script>
+
+<style>
+/* Admin panel specific styles */
+.min-vh-100 {
+    min-height: 100vh;
+}
+
+/* Sidebar styling */
+.list-group-item {
+    border: none;
+    padding: 0.75rem 1rem;
+}
+
+.list-group-item.active {
+    background-color: #007bff;
+    color: white;
+}
+
+.list-group-item:hover {
+    background-color: #f8f9fa;
+}
+
+/* Report cards */
+.report-item {
+    transition: all 0.3s;
+}
+
+.report-item:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Log level colors */
+.bg-info { background-color: #17a2b8 !important; }
+.bg-warning { background-color: #ffc107 !important; }
+.bg-error { background-color: #dc3545 !important; }
+.bg-critical { background-color: #721c24 !important; }
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .col-md-2 {
+        position: fixed;
+        z-index: 1000;
+        background: white;
+        height: 100vh;
+        transform: translateX(-100%);
+        transition: transform 0.3s;
+    }
+    
+    .col-md-2.show {
+        transform: translateX(0);
+    }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,470 @@
+{# Inherit base.html layout #}
+{% extends "base.html" %}
+
+{# Website title #}
+{% block title %}Payment - Safe Companions{% endblock %}
+
+{# Main content #}
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            {# Payment Progress Steps #}
+            <div class="mb-4">
+                <div class="d-flex justify-content-between position-relative">
+                    <div class="text-center flex-fill">
+                        <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center" 
+                             style="width: 40px; height: 40px;">1</div>
+                        <p class="mb-0 small mt-1">Booking Details</p>
+                    </div>
+                    <div class="position-absolute top-0 start-50 translate-middle-x" style="width: 50%; height: 40px;">
+                        <hr class="mt-3">
+                    </div>
+                    <div class="text-center flex-fill">
+                        <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center" 
+                             style="width: 40px; height: 40px;" id="step-2-circle">2</div>
+                        <p class="mb-0 small mt-1">Payment</p>
+                    </div>
+                    <div class="position-absolute top-0 start-50 translate-middle-x" style="width: 50%; height: 40px; left: 25%!important;">
+                        <hr class="mt-3" id="step-3-line">
+                    </div>
+                    <div class="text-center flex-fill">
+                        <div class="rounded-circle bg-secondary text-white d-inline-flex align-items-center justify-content-center" 
+                             style="width: 40px; height: 40px;" id="step-3-circle">3</div>
+                        <p class="mb-0 small mt-1">Confirmation</p>
+                    </div>
+                </div>
+            </div>
+
+            {# Booking Summary Card #}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Booking Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>Escort:</strong> <span id="booking-escort-name">Loading...</span></p>
+                            <p class="mb-2"><strong>Date:</strong> <span id="booking-date">Loading...</span></p>
+                            <p class="mb-2"><strong>Time:</strong> <span id="booking-time">Loading...</span></p>
+                            <p class="mb-2"><strong>Duration:</strong> <span id="booking-duration">Loading...</span> hours</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-2"><strong>Location:</strong> <span id="booking-location">Loading...</span></p>
+                            <p class="mb-2"><strong>Hourly Rate:</strong> $<span id="booking-rate">Loading...</span></p>
+                            <h5 class="mb-0 text-primary"><strong>Total Amount:</strong> $<span id="booking-total">Loading...</span></h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# Payment Form #}
+            <div class="card" id="payment-form-card">
+                <div class="card-header">
+                    <h5 class="mb-0">Payment Information</h5>
+                    <p class="mb-0 text-muted small">This is a simulated payment form for demonstration purposes</p>
+                </div>
+                <div class="card-body">
+                    <form id="payment-form" onsubmit="processPayment(event)">
+                        {# Card Information #}
+                        <div class="mb-4">
+                            <label for="card-number" class="form-label">Card Number</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="card-number" 
+                                       placeholder="1234 5678 9012 3456" maxlength="19" 
+                                       pattern="[0-9\s]{13,19}" required>
+                                <span class="input-group-text">
+                                    <i class="bi bi-credit-card"></i>
+                                </span>
+                            </div>
+                            <div class="mt-2">
+                                <img src="/static/img/visa.png" alt="Visa" height="30" class="me-2">
+                                <img src="/static/img/mastercard.png" alt="Mastercard" height="30" class="me-2">
+                                <img src="/static/img/amex.png" alt="Amex" height="30">
+                            </div>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="card-expiry" class="form-label">Expiry Date</label>
+                                <input type="text" class="form-control" id="card-expiry" 
+                                       placeholder="MM/YY" maxlength="5" pattern="[0-9]{2}/[0-9]{2}" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="card-cvv" class="form-label">
+                                    CVV
+                                    <i class="bi bi-question-circle text-muted" data-bs-toggle="tooltip" 
+                                       title="3-digit code on the back of your card"></i>
+                                </label>
+                                <input type="text" class="form-control" id="card-cvv" 
+                                       placeholder="123" maxlength="4" pattern="[0-9]{3,4}" required>
+                            </div>
+                        </div>
+
+                        {# Billing Information #}
+                        <h6 class="mb-3">Billing Information</h6>
+                        <div class="mb-3">
+                            <label for="cardholder-name" class="form-label">Cardholder Name</label>
+                            <input type="text" class="form-control" id="cardholder-name" 
+                                   placeholder="John Doe" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="billing-email" class="form-label">Email Address</label>
+                            <input type="email" class="form-control" id="billing-email" 
+                                   value="{{ user.email }}" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="billing-address" class="form-label">Billing Address</label>
+                            <input type="text" class="form-control" id="billing-address" 
+                                   placeholder="123 Main Street" required>
+                        </div>
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="billing-city" class="form-label">City</label>
+                                <input type="text" class="form-control" id="billing-city" 
+                                       placeholder="New York" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="billing-state" class="form-label">State</label>
+                                <input type="text" class="form-control" id="billing-state" 
+                                       placeholder="NY" maxlength="2" required>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="billing-zip" class="form-label">ZIP Code</label>
+                                <input type="text" class="form-control" id="billing-zip" 
+                                       placeholder="10001" pattern="[0-9]{5}" required>
+                            </div>
+                        </div>
+
+                        {# Terms and Conditions #}
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" type="checkbox" id="terms-agree" required>
+                            <label class="form-check-label" for="terms-agree">
+                                I agree to the <a href="/legal.html#terms" target="_blank">Terms of Service</a> 
+                                and understand this is a simulated payment
+                            </label>
+                        </div>
+
+                        {# Security Notice #}
+                        <div class="alert alert-info mb-4">
+                            <i class="bi bi-shield-check me-2"></i>
+                            <strong>Secure Payment</strong><br>
+                            Your payment information is encrypted and secure. This is a simulation and no real charges will be made.
+                        </div>
+
+                        {# Action Buttons #}
+                        <div class="d-flex justify-content-between">
+                            <a href="/booking.html" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> Back to Booking
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="pay-button">
+                                <i class="bi bi-lock"></i> Pay $<span id="pay-amount">0</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            {# Processing State #}
+            <div class="card" id="payment-processing" style="display: none;">
+                <div class="card-body text-center py-5">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Processing...</span>
+                    </div>
+                    <h5>Processing Payment...</h5>
+                    <p class="text-muted">Please do not close this window</p>
+                </div>
+            </div>
+
+            {# Success State #}
+            <div class="card" id="payment-success" style="display: none;">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-check-circle text-success" style="font-size: 4rem;"></i>
+                    <h4 class="mt-3 mb-3">Payment Successful!</h4>
+                    <p class="mb-4">Your booking has been confirmed and payment processed.</p>
+                    
+                    <div class="alert alert-success">
+                        <strong>Transaction ID:</strong> <span id="transaction-id"></span><br>
+                        <strong>Amount Paid:</strong> $<span id="paid-amount"></span>
+                    </div>
+                    
+                    <p class="mb-4">A confirmation email has been sent to your registered email address.</p>
+                    
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="/dashboard.html" class="btn btn-primary">
+                            <i class="bi bi-house"></i> Go to Dashboard
+                        </a>
+                        <a href="/booking.html" class="btn btn-outline-primary">
+                            <i class="bi bi-calendar-check"></i> View Bookings
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            {# Error State #}
+            <div class="card" id="payment-error" style="display: none;">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-x-circle text-danger" style="font-size: 4rem;"></i>
+                    <h4 class="mt-3 mb-3">Payment Failed</h4>
+                    <p class="mb-4 text-danger" id="error-message">
+                        There was an error processing your payment. Please try again.
+                    </p>
+                    
+                    <div class="d-flex justify-content-center gap-3">
+                        <button class="btn btn-primary" onclick="retryPayment()">
+                            <i class="bi bi-arrow-clockwise"></i> Try Again
+                        </button>
+                        <a href="/booking.html" class="btn btn-outline-secondary">
+                            Cancel Booking
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            {# Payment History (if viewing past payment) #}
+            <div id="payment-history-section" style="display: none;">
+                <h5 class="mb-3">Payment History</h5>
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Transaction ID</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Receipt</th>
+                            </tr>
+                        </thead>
+                        <tbody id="payment-history-table">
+                            {# Loaded dynamically #}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Load booking data on page load
+let bookingData = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Load booking data from session storage
+    const storedData = sessionStorage.getItem('bookingData');
+    if (storedData) {
+        bookingData = JSON.parse(storedData);
+        displayBookingDetails();
+    } else {
+        // If no booking data, might be viewing payment history
+        const urlParams = new URLSearchParams(window.location.search);
+        const bookingId = urlParams.get('booking_id');
+        if (bookingId) {
+            loadBookingPayment(bookingId);
+        } else {
+            // No booking data, redirect back
+            window.location.href = '/booking.html';
+        }
+    }
+    
+    // Format card number input
+    document.getElementById('card-number').addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\s/g, '');
+        let formattedValue = value.match(/.{1,4}/g)?.join(' ') || value;
+        e.target.value = formattedValue;
+    });
+    
+    // Format expiry date input
+    document.getElementById('card-expiry').addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length >= 2) {
+            value = value.slice(0, 2) + '/' + value.slice(2, 4);
+        }
+        e.target.value = value;
+    });
+    
+    // Only allow numbers for CVV
+    document.getElementById('card-cvv').addEventListener('input', function(e) {
+        e.target.value = e.target.value.replace(/\D/g, '');
+    });
+});
+
+// Display booking details
+function displayBookingDetails() {
+    if (!bookingData) return;
+    
+    document.getElementById('booking-escort-name').textContent = bookingData.escort_name;
+    document.getElementById('booking-date').textContent = bookingData.date;
+    document.getElementById('booking-time').textContent = bookingData.time;
+    document.getElementById('booking-duration').textContent = bookingData.duration;
+    document.getElementById('booking-location').textContent = bookingData.location_type === 'incall' ? 'Incall' : 'Outcall';
+    document.getElementById('booking-rate').textContent = bookingData.hourly_rate;
+    document.getElementById('booking-total').textContent = bookingData.total_amount;
+    document.getElementById('pay-amount').textContent = bookingData.total_amount;
+}
+
+// Process payment
+function processPayment(event) {
+    event.preventDefault();
+    
+    // Show processing state
+    document.getElementById('payment-form-card').style.display = 'none';
+    document.getElementById('payment-processing').style.display = 'block';
+    
+    // Simulate payment processing
+    setTimeout(() => {
+        // Simulate validation
+        const cardNumber = document.getElementById('card-number').value.replace(/\s/g, '');
+        
+        // Simple validation (in real app, this would be server-side)
+        if (cardNumber.startsWith('4111')) {
+            // Simulate success
+            paymentSuccess();
+        } else if (cardNumber.startsWith('5555')) {
+            // Simulate decline
+            paymentError('Card declined. Please use a different payment method.');
+        } else {
+            // Random success/failure for demo
+            if (Math.random() > 0.2) {
+                paymentSuccess();
+            } else {
+                paymentError('Payment processing error. Please try again.');
+            }
+        }
+    }, 3000);
+}
+
+// Payment success
+function paymentSuccess() {
+    // Generate transaction ID
+    const transactionId = 'TXN' + Date.now();
+    
+    // Create booking via API
+    const paymentData = {
+        ...bookingData,
+        transaction_id: transactionId,
+        payment_method: 'card',
+        cardholder_name: document.getElementById('cardholder-name').value
+    };
+    
+    fetch('/api/bookings/create', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(paymentData)
+    }).then(response => response.json())
+    .then(data => {
+        // Update UI
+        document.getElementById('payment-processing').style.display = 'none';
+        document.getElementById('payment-success').style.display = 'block';
+        document.getElementById('transaction-id').textContent = transactionId;
+        document.getElementById('paid-amount').textContent = bookingData.total_amount;
+        
+        // Update progress steps
+        document.getElementById('step-3-circle').classList.remove('bg-secondary');
+        document.getElementById('step-3-circle').classList.add('bg-primary');
+        
+        // Clear booking data
+        sessionStorage.removeItem('bookingData');
+    });
+}
+
+// Payment error
+function paymentError(message) {
+    document.getElementById('payment-processing').style.display = 'none';
+    document.getElementById('payment-error').style.display = 'block';
+    document.getElementById('error-message').textContent = message;
+}
+
+// Retry payment
+function retryPayment() {
+    document.getElementById('payment-error').style.display = 'none';
+    document.getElementById('payment-form-card').style.display = 'block';
+}
+
+// Load booking payment (for viewing existing payment)
+function loadBookingPayment(bookingId) {
+    fetch(`/api/bookings/${bookingId}/payment`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.payment_status === 'completed') {
+                // Show payment history
+                document.getElementById('payment-form-card').style.display = 'none';
+                document.getElementById('payment-history-section').style.display = 'block';
+                
+                const tableBody = document.getElementById('payment-history-table');
+                tableBody.innerHTML = `
+                    <tr>
+                        <td>${data.payment_date}</td>
+                        <td>${data.transaction_id}</td>
+                        <td>$${data.amount}</td>
+                        <td><span class="badge bg-success">Completed</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="downloadReceipt('${data.transaction_id}')">
+                                <i class="bi bi-download"></i> Download
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }
+        });
+}
+
+// Download receipt
+function downloadReceipt(transactionId) {
+    window.open(`/api/receipts/${transactionId}`, '_blank');
+}
+
+// Validate card number (Luhn algorithm)
+function validateCardNumber(number) {
+    const digits = number.replace(/\D/g, '');
+    let sum = 0;
+    let isEven = false;
+    
+    for (let i = digits.length - 1; i >= 0; i--) {
+        let digit = parseInt(digits[i]);
+        
+        if (isEven) {
+            digit *= 2;
+            if (digit > 9) {
+                digit -= 9;
+            }
+        }
+        
+        sum += digit;
+        isEven = !isEven;
+    }
+    
+    return sum % 10 === 0;
+}
+</script>
+
+<style>
+/* Card type indicators */
+#card-number:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+/* Processing animation */
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .card-body {
+        padding: 1rem;
+    }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,767 @@
+{# Inherit base.html layout #}
+{% extends "base.html" %}
+
+{# Website title #}
+{% block title %}Bookings - Safe Companions{% endblock %}
+
+{# Main content #}
+{% block content %}
+<div class="container mt-4">
+    {# Tab Navigation #}
+    <ul class="nav nav-tabs" id="bookingTabs" role="tablist">
+        {% if user.role == 'seeker' %}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="create-tab" data-bs-toggle="tab" data-bs-target="#create" type="button">
+                <i class="bi bi-calendar-plus"></i> Create Booking
+            </button>
+        </li>
+        {% endif %}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {% if user.role == 'escort' %}active{% endif %}" id="my-bookings-tab" data-bs-toggle="tab" data-bs-target="#my-bookings" type="button">
+                <i class="bi bi-calendar-check"></i> My Bookings
+            </button>
+        </li>
+        {% if user.role == 'escort' %}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="requests-tab" data-bs-toggle="tab" data-bs-target="#requests" type="button">
+                <i class="bi bi-inbox"></i> Booking Requests
+                {% if pending_requests > 0 %}
+                <span class="badge bg-danger">{{ pending_requests }}</span>
+                {% endif %}
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="availability-tab" data-bs-toggle="tab" data-bs-target="#availability" type="button">
+                <i class="bi bi-calendar-range"></i> Set Availability
+            </button>
+        </li>
+        {% endif %}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button">
+                <i class="bi bi-clock-history"></i> History
+            </button>
+        </li>
+    </ul>
+
+    {# Tab Content #}
+    <div class="tab-content mt-3" id="bookingTabContent">
+        {# Create Booking Tab (Seekers only) #}
+        {% if user.role == 'seeker' %}
+        <div class="tab-pane fade show active" id="create" role="tabpanel">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Book an Escort</h5>
+                        </div>
+                        <div class="card-body">
+                            {# Step 1: Select Escort (if not pre-selected) #}
+                            {% if not selected_escort %}
+                            <div id="step-1-escort">
+                                <h6>Step 1: Select an Escort</h6>
+                                <div class="mb-3">
+                                    <input type="text" class="form-control" id="escort-search" 
+                                           placeholder="Search for an escort by name...">
+                                </div>
+                                <div id="escort-search-results" class="row g-2">
+                                    {# Results loaded via AJAX #}
+                                </div>
+                            </div>
+                            {% else %}
+                            <div id="selected-escort-info" class="mb-3">
+                                <h6>Booking with:</h6>
+                                <div class="d-flex align-items-center">
+                                    <img src="{{ selected_escort.profile_photo }}" class="rounded-circle me-3" 
+                                         width="60" height="60" alt="{{ selected_escort.display_name }}">
+                                    <div>
+                                        <h5 class="mb-0">{{ selected_escort.display_name }}</h5>
+                                        <p class="mb-0 text-muted">${{ selected_escort.hourly_rate }}/hour</p>
+                                    </div>
+                                    <button class="btn btn-sm btn-link ms-auto" onclick="changeEscort()">Change</button>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            {# Step 2: Select Date & Time #}
+                            <div id="step-2-datetime" {% if not selected_escort %}style="display: none;"{% endif %}>
+                                <h6>Step 2: Select Date & Time</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <label class="form-label">Select Date</label>
+                                        <input type="date" class="form-control" id="booking-date" 
+                                               min="{{ today }}" onchange="loadAvailableSlots()">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Duration</label>
+                                        <select class="form-select" id="booking-duration" onchange="updateTotalPrice()">
+                                            <option value="1">1 hour</option>
+                                            <option value="2">2 hours</option>
+                                            <option value="3">3 hours</option>
+                                            <option value="4">4 hours</option>
+                                            <option value="8">8 hours</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                {# Available Time Slots #}
+                                <div class="mt-3">
+                                    <label class="form-label">Available Time Slots</label>
+                                    <div id="time-slots" class="row g-2">
+                                        <p class="text-muted">Select a date to view available slots</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {# Step 3: Booking Details #}
+                            <div id="step-3-details" style="display: none;">
+                                <h6>Step 3: Booking Details</h6>
+                                <div class="mb-3">
+                                    <label for="booking-location" class="form-label">Meeting Location</label>
+                                    <select class="form-select" id="booking-location">
+                                        <option value="incall">Incall (Escort's location)</option>
+                                        <option value="outcall">Outcall (Your location)</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3" id="outcall-address" style="display: none;">
+                                    <label for="meeting-address" class="form-label">Your Address</label>
+                                    <textarea class="form-control" id="meeting-address" rows="2" 
+                                              placeholder="Enter your address for outcall service"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="special-requests" class="form-label">Special Requests (Optional)</label>
+                                    <textarea class="form-control" id="special-requests" rows="3" 
+                                              placeholder="Any special requests or notes for the escort..."></textarea>
+                                </div>
+                            </div>
+
+                            {# Booking Summary #}
+                            <div id="booking-summary" class="alert alert-info" style="display: none;">
+                                <h6>Booking Summary</h6>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <p class="mb-1"><strong>Date:</strong> <span id="summary-date"></span></p>
+                                        <p class="mb-1"><strong>Time:</strong> <span id="summary-time"></span></p>
+                                        <p class="mb-1"><strong>Duration:</strong> <span id="summary-duration"></span></p>
+                                    </div>
+                                    <div class="col-6">
+                                        <p class="mb-1"><strong>Location:</strong> <span id="summary-location"></span></p>
+                                        <p class="mb-1"><strong>Rate:</strong> $<span id="summary-rate"></span>/hour</p>
+                                        <h5 class="mb-0"><strong>Total:</strong> $<span id="summary-total"></span></h5>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {# Action Buttons #}
+                            <div class="d-flex justify-content-between mt-4">
+                                <button class="btn btn-secondary" id="btn-previous" onclick="previousStep()" style="display: none;">
+                                    <i class="bi bi-arrow-left"></i> Previous
+                                </button>
+                                <button class="btn btn-primary ms-auto" id="btn-next" onclick="nextStep()" disabled>
+                                    Next <i class="bi bi-arrow-right"></i>
+                                </button>
+                                <button class="btn btn-success ms-auto" id="btn-proceed-payment" onclick="proceedToPayment()" style="display: none;">
+                                    Proceed to Payment <i class="bi bi-credit-card"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {# Calendar View #}
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">Calendar View</h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="mini-calendar">
+                                {# Mini calendar would be rendered here #}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {# My Bookings Tab #}
+        <div class="tab-pane fade {% if user.role == 'escort' %}show active{% endif %}" id="my-bookings" role="tabpanel">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        {% if user.role == 'seeker' %}My Bookings{% else %}Upcoming Bookings{% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Booking ID</th>
+                                    <th>{% if user.role == 'seeker' %}Escort{% else %}Client{% endif %}</th>
+                                    <th>Date & Time</th>
+                                    <th>Duration</th>
+                                    <th>Location</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for booking in active_bookings %}
+                                <tr>
+                                    <td>#{{ booking.id }}</td>
+                                    <td>
+                                        {% if user.role == 'seeker' %}
+                                            {{ booking.escort_name }}
+                                        {% else %}
+                                            {{ booking.client_name }}
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ booking.date }} at {{ booking.time }}</td>
+                                    <td>{{ booking.duration }} hours</td>
+                                    <td>{{ booking.location|title }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ booking.status_color }}">
+                                            {{ booking.status|title }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-info" onclick="viewBookingDetails({{ booking.id }})">
+                                            <i class="bi bi-eye"></i> View
+                                        </button>
+                                        {% if booking.status == 'confirmed' and booking.can_message %}
+                                        <button class="btn btn-sm btn-primary" onclick="startChat({{ booking.id }})">
+                                            <i class="bi bi-chat"></i> Chat
+                                        </button>
+                                        {% endif %}
+                                        {% if booking.can_cancel %}
+                                        <button class="btn btn-sm btn-danger" onclick="cancelBooking({{ booking.id }})">
+                                            <i class="bi bi-x-circle"></i> Cancel
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# Booking Requests Tab (Escorts only) #}
+        {% if user.role == 'escort' %}
+        <div class="tab-pane fade" id="requests" role="tabpanel">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Pending Booking Requests</h5>
+                </div>
+                <div class="card-body">
+                    {% for request in booking_requests %}
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <h6>Booking Request from {{ request.client_name }}</h6>
+                                    <p class="mb-1"><strong>Date:</strong> {{ request.date }}</p>
+                                    <p class="mb-1"><strong>Time:</strong> {{ request.time }}</p>
+                                    <p class="mb-1"><strong>Duration:</strong> {{ request.duration }} hours</p>
+                                    <p class="mb-1"><strong>Location:</strong> {{ request.location|title }}</p>
+                                    {% if request.special_requests %}
+                                    <p class="mb-1"><strong>Special Requests:</strong> {{ request.special_requests }}</p>
+                                    {% endif %}
+                                    <p class="mb-0"><strong>Total Payment:</strong> ${{ request.total_amount }}</p>
+                                </div>
+                                <div class="col-md-4 text-end">
+                                    <p class="text-muted small">Requested {{ request.created_at }}</p>
+                                    <button class="btn btn-success" onclick="acceptBooking({{ request.id }})">
+                                        <i class="bi bi-check-circle"></i> Accept
+                                    </button>
+                                    <button class="btn btn-danger" onclick="rejectBooking({{ request.id }})">
+                                        <i class="bi bi-x-circle"></i> Reject
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center">No pending booking requests</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        {# Set Availability Tab (Escorts only) #}
+        <div class="tab-pane fade" id="availability" role="tabpanel">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Set Your Availability</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Regular Schedule</h6>
+                            <p class="text-muted">Set your regular working hours</p>
+                            {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+                            <div class="mb-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="day-{{ day|lower }}" 
+                                           onchange="toggleDayAvailability('{{ day|lower }}')">
+                                    <label class="form-check-label" for="day-{{ day|lower }}">
+                                        {{ day }}
+                                    </label>
+                                </div>
+                                <div id="hours-{{ day|lower }}" style="display: none;" class="ms-4 mt-1">
+                                    <div class="row g-2">
+                                        <div class="col-5">
+                                            <input type="time" class="form-control form-control-sm" 
+                                                   id="start-{{ day|lower }}" value="09:00">
+                                        </div>
+                                        <div class="col-2 text-center">to</div>
+                                        <div class="col-5">
+                                            <input type="time" class="form-control form-control-sm" 
+                                                   id="end-{{ day|lower }}" value="18:00">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            <button class="btn btn-primary mt-3" onclick="saveRegularSchedule()">
+                                Save Regular Schedule
+                            </button>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6>Special Dates</h6>
+                            <p class="text-muted">Override availability for specific dates</p>
+                            
+                            {# Add Special Date #}
+                            <div class="mb-3">
+                                <label class="form-label">Add Unavailable Date</label>
+                                <div class="input-group">
+                                    <input type="date" class="form-control" id="special-date" min="{{ today }}">
+                                    <button class="btn btn-outline-secondary" onclick="addUnavailableDate()">
+                                        Add
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            {# List of Special Dates #}
+                            <div id="special-dates-list">
+                                {% for date in special_dates %}
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span>{{ date }}</span>
+                                    <button class="btn btn-sm btn-link text-danger" 
+                                            onclick="removeSpecialDate('{{ date }}')">
+                                        Remove
+                                    </button>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {# History Tab #}
+        <div class="tab-pane fade" id="history" role="tabpanel">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Booking History</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Booking ID</th>
+                                    <th>{% if user.role == 'seeker' %}Escort{% else %}Client{% endif %}</th>
+                                    <th>Date</th>
+                                    <th>Duration</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for booking in booking_history %}
+                                <tr>
+                                    <td>#{{ booking.id }}</td>
+                                    <td>{{ booking.other_party_name }}</td>
+                                    <td>{{ booking.date }}</td>
+                                    <td>{{ booking.duration }} hours</td>
+                                    <td>${{ booking.total_amount }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ booking.status_color }}">
+                                            {{ booking.status|title }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-info" onclick="viewBookingDetails({{ booking.id }})">
+                                            <i class="bi bi-eye"></i> View
+                                        </button>
+                                        {% if booking.status == 'completed' and not booking.has_feedback %}
+                                        <button class="btn btn-sm btn-warning" onclick="leaveFeedback({{ booking.id }})">
+                                            <i class="bi bi-star"></i> Review
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Booking Details Modal #}
+<div class="modal fade" id="bookingDetailsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Booking Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="bookingDetailsContent">
+                {# Content loaded dynamically #}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Booking creation state
+let currentStep = 1;
+let selectedEscortId = {{ selected_escort.id if selected_escort else 'null' }};
+let selectedDate = null;
+let selectedTime = null;
+let bookingData = {};
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle location type change
+    document.getElementById('booking-location')?.addEventListener('change', function() {
+        document.getElementById('outcall-address').style.display = 
+            this.value === 'outcall' ? 'block' : 'none';
+    });
+    
+    // Load calendar if on availability tab
+    if (window.location.hash === '#availability') {
+        loadAvailabilityCalendar();
+    }
+});
+
+// Escort search
+document.getElementById('escort-search')?.addEventListener('input', function() {
+    const query = this.value;
+    if (query.length > 2) {
+        fetch(`/api/escorts/search?q=${query}`)
+            .then(response => response.json())
+            .then(data => {
+                const resultsDiv = document.getElementById('escort-search-results');
+                resultsDiv.innerHTML = data.map(escort => `
+                    <div class="col-md-6">
+                        <div class="card mb-2 cursor-pointer" onclick="selectEscort(${escort.id}, '${escort.display_name}', ${escort.hourly_rate})">
+                            <div class="card-body p-2">
+                                <div class="d-flex align-items-center">
+                                    <img src="${escort.profile_photo}" class="rounded-circle me-2" 
+                                         width="40" height="40" alt="${escort.display_name}">
+                                    <div>
+                                        <h6 class="mb-0">${escort.display_name}</h6>
+                                        <small class="text-muted">$${escort.hourly_rate}/hour</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            });
+    }
+});
+
+// Select escort
+function selectEscort(id, name, rate) {
+    selectedEscortId = id;
+    bookingData.escort_id = id;
+    bookingData.escort_name = name;
+    bookingData.hourly_rate = rate;
+    
+    // Show selected escort info
+    document.getElementById('step-1-escort').style.display = 'none';
+    document.getElementById('step-2-datetime').style.display = 'block';
+    document.getElementById('btn-next').disabled = false;
+    
+    updateTotalPrice();
+}
+
+// Load available time slots
+function loadAvailableSlots() {
+    const date = document.getElementById('booking-date').value;
+    if (!date || !selectedEscortId) return;
+    
+    selectedDate = date;
+    bookingData.date = date;
+    
+    fetch(`/api/escorts/${selectedEscortId}/availability?date=${date}`)
+        .then(response => response.json())
+        .then(data => {
+            const slotsDiv = document.getElementById('time-slots');
+            if (data.slots.length === 0) {
+                slotsDiv.innerHTML = '<p class="text-muted">No available slots for this date</p>';
+            } else {
+                slotsDiv.innerHTML = data.slots.map(slot => `
+                    <div class="col-3">
+                        <button class="btn btn-outline-primary w-100 time-slot" 
+                                onclick="selectTimeSlot('${slot}')" data-time="${slot}">
+                            ${slot}
+                        </button>
+                    </div>
+                `).join('');
+            }
+        });
+}
+
+// Select time slot
+function selectTimeSlot(time) {
+    selectedTime = time;
+    bookingData.time = time;
+    
+    // Update UI
+    document.querySelectorAll('.time-slot').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    document.getElementById('btn-next').disabled = false;
+    updateBookingSummary();
+}
+
+// Update total price
+function updateTotalPrice() {
+    const duration = document.getElementById('booking-duration').value;
+    bookingData.duration = duration;
+    
+    if (bookingData.hourly_rate) {
+        const total = bookingData.hourly_rate * duration;
+        bookingData.total_amount = total;
+        
+        if (document.getElementById('summary-total')) {
+            document.getElementById('summary-total').textContent = total;
+        }
+    }
+}
+
+// Update booking summary
+function updateBookingSummary() {
+    if (bookingData.date && bookingData.time && bookingData.duration) {
+        document.getElementById('summary-date').textContent = bookingData.date;
+        document.getElementById('summary-time').textContent = bookingData.time;
+        document.getElementById('summary-duration').textContent = bookingData.duration + ' hours';
+        document.getElementById('summary-location').textContent = 
+            document.getElementById('booking-location').value === 'incall' ? 'Incall' : 'Outcall';
+        document.getElementById('summary-rate').textContent = bookingData.hourly_rate;
+        document.getElementById('summary-total').textContent = bookingData.total_amount;
+        
+        document.getElementById('booking-summary').style.display = 'block';
+    }
+}
+
+// Navigation between steps
+function nextStep() {
+    if (currentStep === 2) {
+        // Show details step
+        document.getElementById('step-3-details').style.display = 'block';
+        document.getElementById('btn-previous').style.display = 'inline-block';
+        document.getElementById('btn-next').style.display = 'none';
+        document.getElementById('btn-proceed-payment').style.display = 'inline-block';
+        currentStep = 3;
+    }
+}
+
+function previousStep() {
+    if (currentStep === 3) {
+        document.getElementById('step-3-details').style.display = 'none';
+        document.getElementById('btn-previous').style.display = 'none';
+        document.getElementById('btn-next').style.display = 'inline-block';
+        document.getElementById('btn-proceed-payment').style.display = 'none';
+        currentStep = 2;
+    }
+}
+
+// Proceed to payment
+function proceedToPayment() {
+    // Collect final booking data
+    bookingData.location_type = document.getElementById('booking-location').value;
+    if (bookingData.location_type === 'outcall') {
+        bookingData.meeting_address = document.getElementById('meeting-address').value;
+    }
+    bookingData.special_requests = document.getElementById('special-requests').value;
+    
+    // Store booking data and redirect to payment
+    sessionStorage.setItem('bookingData', JSON.stringify(bookingData));
+    window.location.href = '/payment.html';
+}
+
+// View booking details
+function viewBookingDetails(bookingId) {
+    fetch(`/api/bookings/${bookingId}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('bookingDetailsContent').innerHTML = `
+                <div class="mb-3">
+                    <strong>Booking ID:</strong> #${data.id}<br>
+                    <strong>Status:</strong> <span class="badge bg-${data.status_color}">${data.status}</span>
+                </div>
+                <div class="mb-3">
+                    <strong>${data.user_role === 'seeker' ? 'Escort' : 'Client'}:</strong> ${data.other_party_name}<br>
+                    <strong>Date:</strong> ${data.date}<br>
+                    <strong>Time:</strong> ${data.time}<br>
+                    <strong>Duration:</strong> ${data.duration} hours<br>
+                    <strong>Location:</strong> ${data.location_type}
+                </div>
+                <div class="mb-3">
+                    <strong>Total Amount:</strong> $${data.total_amount}<br>
+                    <strong>Payment Status:</strong> ${data.payment_status}
+                </div>
+                ${data.special_requests ? `
+                    <div class="mb-3">
+                        <strong>Special Requests:</strong><br>
+                        ${data.special_requests}
+                    </div>
+                ` : ''}
+            `;
+            
+            const modal = new bootstrap.Modal(document.getElementById('bookingDetailsModal'));
+            modal.show();
+        });
+}
+
+// Cancel booking
+function cancelBooking(bookingId) {
+    if (confirm('Are you sure you want to cancel this booking?')) {
+        fetch(`/api/bookings/${bookingId}/cancel`, {
+            method: 'POST'
+        }).then(response => {
+            if (response.ok) {
+                location.reload();
+            }
+        });
+    }
+}
+
+// Accept booking (escorts)
+function acceptBooking(requestId) {
+    fetch(`/api/bookings/${requestId}/accept`, {
+        method: 'POST'
+    }).then(response => {
+        if (response.ok) {
+            location.reload();
+        }
+    });
+}
+
+// Reject booking (escorts)
+function rejectBooking(requestId) {
+    const reason = prompt('Please provide a reason for rejection (optional):');
+    fetch(`/api/bookings/${requestId}/reject`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({reason: reason})
+    }).then(response => {
+        if (response.ok) {
+            location.reload();
+        }
+    });
+}
+
+// Toggle day availability (escorts)
+function toggleDayAvailability(day) {
+    const checkbox = document.getElementById(`day-${day}`);
+    const hoursDiv = document.getElementById(`hours-${day}`);
+    hoursDiv.style.display = checkbox.checked ? 'block' : 'none';
+}
+
+// Save regular schedule (escorts)
+function saveRegularSchedule() {
+    const schedule = {};
+    ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].forEach(day => {
+        const checkbox = document.getElementById(`day-${day}`);
+        if (checkbox.checked) {
+            schedule[day] = {
+                start: document.getElementById(`start-${day}`).value,
+                end: document.getElementById(`end-${day}`).value
+            };
+        }
+    });
+    
+    fetch('/api/availability/schedule', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(schedule)
+    }).then(response => {
+        if (response.ok) {
+            alert('Schedule saved successfully!');
+        }
+    });
+}
+
+// Add unavailable date (escorts)
+function addUnavailableDate() {
+    const date = document.getElementById('special-date').value;
+    if (!date) return;
+    
+    fetch('/api/availability/block-date', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({date: date})
+    }).then(response => {
+        if (response.ok) {
+            location.reload();
+        }
+    });
+}
+
+// Remove special date (escorts)
+function removeSpecialDate(date) {
+    fetch('/api/availability/unblock-date', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({date: date})
+    }).then(response => {
+        if (response.ok) {
+            location.reload();
+        }
+    });
+}
+
+// Start chat
+function startChat(bookingId) {
+    window.location.href = `/messaging.html?booking_id=${bookingId}`;
+}
+
+// Leave feedback
+function leaveFeedback(bookingId) {
+    window.location.href = `/messaging.html?action=feedback&booking_id=${bookingId}`;
+}
+</script>
+
+<style>
+.time-slot.active {
+    background-color: var(--bs-primary);
+    color: white;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.cursor-pointer:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+</style>
+{% endblock %}

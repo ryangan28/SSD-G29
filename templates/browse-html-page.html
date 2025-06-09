@@ -1,0 +1,441 @@
+{# Inherit base.html layout #}
+{% extends "base.html" %}
+
+{# Website title #}
+{% block title %}Browse Escorts - Safe Companions{% endblock %}
+
+{# Main content #}
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        {# Filters Sidebar #}
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-funnel"></i> Filters
+                        <button class="btn btn-sm btn-link float-end" onclick="resetFilters()">Reset</button>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form id="filter-form" onsubmit="applyFilters(event)">
+                        {# Search by Name #}
+                        <div class="mb-3">
+                            <label for="search-name" class="form-label">Search by Name</label>
+                            <input type="text" class="form-control" id="search-name" name="search" 
+                                   placeholder="Enter name..." value="{{ request.args.get('search', '') }}">
+                        </div>
+                        
+                        {# Age Range #}
+                        <div class="mb-3">
+                            <label class="form-label">Age Range</label>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <input type="number" class="form-control" name="min_age" 
+                                           placeholder="Min" min="18" max="100" 
+                                           value="{{ request.args.get('min_age', '') }}">
+                                </div>
+                                <div class="col-6">
+                                    <input type="number" class="form-control" name="max_age" 
+                                           placeholder="Max" min="18" max="100"
+                                           value="{{ request.args.get('max_age', '') }}">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {# Gender #}
+                        <div class="mb-3">
+                            <label class="form-label">Gender</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="gender" value="male" id="gender-male"
+                                       {{ 'checked' if 'male' in request.args.getlist('gender') else '' }}>
+                                <label class="form-check-label" for="gender-male">Male</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="gender" value="female" id="gender-female"
+                                       {{ 'checked' if 'female' in request.args.getlist('gender') else '' }}>
+                                <label class="form-check-label" for="gender-female">Female</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="gender" value="other" id="gender-other"
+                                       {{ 'checked' if 'other' in request.args.getlist('gender') else '' }}>
+                                <label class="form-check-label" for="gender-other">Other</label>
+                            </div>
+                        </div>
+                        
+                        {# Location #}
+                        <div class="mb-3">
+                            <label for="location" class="form-label">Location</label>
+                            <select class="form-select" id="location" name="location">
+                                <option value="">All Locations</option>
+                                {% for loc in locations %}
+                                    <option value="{{ loc }}" {{ 'selected' if loc == request.args.get('location') else '' }}>
+                                        {{ loc }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        {# Availability #}
+                        <div class="mb-3">
+                            <label class="form-label">Availability</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="available_now" id="available-now"
+                                       {{ 'checked' if request.args.get('available_now') else '' }}>
+                                <label class="form-check-label" for="available-now">Available Now</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="available_today" id="available-today"
+                                       {{ 'checked' if request.args.get('available_today') else '' }}>
+                                <label class="form-check-label" for="available-today">Available Today</label>
+                            </div>
+                        </div>
+                        
+                        {# Price Range #}
+                        <div class="mb-3">
+                            <label class="form-label">Hourly Rate</label>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <input type="number" class="form-control" name="min_price" 
+                                           placeholder="Min $" min="0" step="10"
+                                           value="{{ request.args.get('min_price', '') }}">
+                                </div>
+                                <div class="col-6">
+                                    <input type="number" class="form-control" name="max_price" 
+                                           placeholder="Max $" min="0" step="10"
+                                           value="{{ request.args.get('max_price', '') }}">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {# Rating #}
+                        <div class="mb-3">
+                            <label class="form-label">Minimum Rating</label>
+                            <select class="form-select" name="min_rating">
+                                <option value="">Any Rating</option>
+                                <option value="4" {{ 'selected' if request.args.get('min_rating') == '4' else '' }}>
+                                    4+ Stars
+                                </option>
+                                <option value="3" {{ 'selected' if request.args.get('min_rating') == '3' else '' }}>
+                                    3+ Stars
+                                </option>
+                                <option value="2" {{ 'selected' if request.args.get('min_rating') == '2' else '' }}>
+                                    2+ Stars
+                                </option>
+                            </select>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary w-100">Apply Filters</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        {# Main Content Area #}
+        <div class="col-md-9">
+            {# Search Results Header #}
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4>{{ total_results }} Escorts Found</h4>
+                <div class="d-flex gap-2">
+                    {# View Toggle #}
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-secondary active" onclick="setView('grid')">
+                            <i class="bi bi-grid"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="setView('list')">
+                            <i class="bi bi-list"></i>
+                        </button>
+                    </div>
+                    
+                    {# Sort Dropdown #}
+                    <select class="form-select" style="width: auto;" onchange="sortResults(this.value)">
+                        <option value="recommended">Recommended</option>
+                        <option value="rating">Highest Rated</option>
+                        <option value="price_low">Price: Low to High</option>
+                        <option value="price_high">Price: High to Low</option>
+                        <option value="newest">Newest Members</option>
+                    </select>
+                </div>
+            </div>
+            
+            {# Escort Grid/List #}
+            <div id="escorts-container" class="row g-3">
+                {% for escort in escorts %}
+                <div class="col-md-4 escort-card">
+                    <div class="card h-100">
+                        {# Availability Badge #}
+                        {% if escort.is_available_now %}
+                        <span class="badge bg-success position-absolute top-0 end-0 m-2">Available Now</span>
+                        {% endif %}
+                        
+                        {# Profile Image #}
+                        <img src="{{ escort.profile_photo or '/static/img/default-escort.png' }}" 
+                             class="card-img-top" alt="{{ escort.display_name }}" style="height: 250px; object-fit: cover;">
+                        
+                        <div class="card-body">
+                            <h5 class="card-title">{{ escort.display_name }}</h5>
+                            
+                            {# Basic Info #}
+                            <p class="card-text mb-2">
+                                <small class="text-muted">
+                                    <i class="bi bi-person"></i> {{ escort.age }} years old
+                                    {% if escort.gender %}
+                                        • {{ escort.gender|title }}
+                                    {% endif %}
+                                </small>
+                            </p>
+                            
+                            {# Location #}
+                            {% if escort.location %}
+                            <p class="card-text mb-2">
+                                <small class="text-muted">
+                                    <i class="bi bi-geo-alt"></i> {{ escort.location }}
+                                </small>
+                            </p>
+                            {% endif %}
+                            
+                            {# Rating #}
+                            <div class="mb-2">
+                                {% for i in range(1, 6) %}
+                                    <i class="bi bi-star{{ '-fill' if i <= escort.average_rating else '' }} text-warning"></i>
+                                {% endfor %}
+                                <small class="text-muted">({{ escort.total_reviews }})</small>
+                            </div>
+                            
+                            {# Price #}
+                            <p class="card-text">
+                                <strong>${{ escort.hourly_rate }}/hour</strong>
+                            </p>
+                            
+                            {# Bio Preview #}
+                            <p class="card-text text-muted small">
+                                {{ escort.bio[:100] }}{% if escort.bio|length > 100 %}...{% endif %}
+                            </p>
+                            
+                            {# Action Buttons #}
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-primary btn-sm flex-fill" onclick="viewProfile({{ escort.id }})">
+                                    View Profile
+                                </button>
+                                <button class="btn btn-outline-primary btn-sm" onclick="toggleFavorite({{ escort.id }}, this)">
+                                    <i class="bi bi-heart{{ '-fill' if escort.id in user_favorites else '' }}"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            {# Pagination #}
+            {% if total_pages > 1 %}
+            <nav aria-label="Search results pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item {{ 'disabled' if current_page == 1 else '' }}">
+                        <a class="page-link" href="?page={{ current_page - 1 }}&{{ query_string }}">Previous</a>
+                    </li>
+                    
+                    {% for page in range(1, total_pages + 1) %}
+                        {% if page == current_page %}
+                            <li class="page-item active">
+                                <span class="page-link">{{ page }}</span>
+                            </li>
+                        {% elif page == 1 or page == total_pages or (page > current_page - 3 and page < current_page + 3) %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page }}&{{ query_string }}">{{ page }}</a>
+                            </li>
+                        {% elif page == current_page - 3 or page == current_page + 3 %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <li class="page-item {{ 'disabled' if current_page == total_pages else '' }}">
+                        <a class="page-link" href="?page={{ current_page + 1 }}&{{ query_string }}">Next</a>
+                    </li>
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{# Profile Modal #}
+<div class="modal fade" id="profileModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="profileModalTitle"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="profileModalBody">
+                {# Content loaded dynamically #}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="bookEscort()">Book Now</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Current escort being viewed
+let currentEscortId = null;
+
+// Apply filters
+function applyFilters(event) {
+    event.preventDefault();
+    const form = document.getElementById('filter-form');
+    const formData = new FormData(form);
+    const params = new URLSearchParams(formData);
+    window.location.href = '/browse.html?' + params.toString();
+}
+
+// Reset filters
+function resetFilters() {
+    window.location.href = '/browse.html';
+}
+
+// View profile in modal
+function viewProfile(escortId) {
+    currentEscortId = escortId;
+    
+    // Fetch escort details
+    fetch(`/api/escort/${escortId}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('profileModalTitle').textContent = data.display_name;
+            document.getElementById('profileModalBody').innerHTML = `
+                <div class="row">
+                    <div class="col-md-4">
+                        <img src="${data.profile_photo || '/static/img/default-escort.png'}" 
+                             class="img-fluid rounded" alt="${data.display_name}">
+                        <div class="mt-3">
+                            <h6>Quick Info</h6>
+                            <p class="mb-1"><strong>Age:</strong> ${data.age}</p>
+                            <p class="mb-1"><strong>Gender:</strong> ${data.gender || 'Not specified'}</p>
+                            <p class="mb-1"><strong>Location:</strong> ${data.location || 'Not specified'}</p>
+                            <p class="mb-1"><strong>Languages:</strong> ${data.languages || 'Not specified'}</p>
+                            <p class="mb-1"><strong>Rate:</strong> $${data.hourly_rate}/hour</p>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <h6>About</h6>
+                        <p>${data.bio || 'No description available.'}</p>
+                        
+                        <h6 class="mt-3">Availability</h6>
+                        <div id="availability-calendar">
+                            <!-- Mini calendar would be loaded here -->
+                            <p class="text-muted">View available time slots in booking</p>
+                        </div>
+                        
+                        <h6 class="mt-3">Reviews (${data.total_reviews})</h6>
+                        <div class="mb-2">
+                            ${generateStars(data.average_rating)}
+                            <span class="ms-2">${data.average_rating.toFixed(1)}/5.0</span>
+                        </div>
+                        <div id="recent-reviews">
+                            ${data.recent_reviews.map(review => `
+                                <div class="border-bottom pb-2 mb-2">
+                                    <div class="d-flex justify-content-between">
+                                        <strong>${review.reviewer_name}</strong>
+                                        <small class="text-muted">${review.date}</small>
+                                    </div>
+                                    <div>${generateStars(review.rating)}</div>
+                                    <p class="mb-0 small">${review.comment}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Show modal
+            const modal = new bootstrap.Modal(document.getElementById('profileModal'));
+            modal.show();
+        });
+}
+
+// Generate star rating HTML
+function generateStars(rating) {
+    let stars = '';
+    for (let i = 1; i <= 5; i++) {
+        stars += `<i class="bi bi-star${i <= rating ? '-fill' : ''} text-warning"></i>`;
+    }
+    return stars;
+}
+
+// Toggle favorite
+function toggleFavorite(escortId, button) {
+    const icon = button.querySelector('i');
+    const isFavorited = icon.classList.contains('bi-heart-fill');
+    
+    fetch('/api/favorites', {
+        method: isFavorited ? 'DELETE' : 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({escort_id: escortId})
+    }).then(response => {
+        if (response.ok) {
+            icon.classList.toggle('bi-heart');
+            icon.classList.toggle('bi-heart-fill');
+        }
+    });
+}
+
+// Book escort (redirect to booking page)
+function bookEscort() {
+    if (currentEscortId) {
+        window.location.href = `/booking.html?escort_id=${currentEscortId}`;
+    }
+}
+
+// Change view mode
+function setView(mode) {
+    const container = document.getElementById('escorts-container');
+    if (mode === 'list') {
+        container.classList.remove('row', 'g-3');
+        container.classList.add('list-view');
+        // Update button states
+        document.querySelectorAll('.btn-group button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        event.target.classList.add('active');
+    } else {
+        container.classList.add('row', 'g-3');
+        container.classList.remove('list-view');
+        // Update button states
+        document.querySelectorAll('.btn-group button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        event.target.classList.add('active');
+    }
+}
+
+// Sort results
+function sortResults(sortBy) {
+    const url = new URL(window.location);
+    url.searchParams.set('sort', sortBy);
+    window.location.href = url.toString();
+}
+</script>
+
+<style>
+/* List view styling */
+.list-view .escort-card {
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+.list-view .card {
+    flex-direction: row;
+}
+
+.list-view .card-img-top {
+    width: 200px;
+    height: 150px;
+    object-fit: cover;
+}
+</style>
+{% endblock %}

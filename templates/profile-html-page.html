@@ -1,0 +1,377 @@
+{# Inherit base.html layout #}
+{% extends "base.html" %}
+
+{# Website title #}
+{% block title %}Profile - Safe Companions{% endblock %}
+
+{# Main content #}
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-3">
+            {# Profile Sidebar #}
+            <div class="card">
+                <div class="card-body text-center">
+                    <div class="position-relative d-inline-block mb-3">
+                        <img src="{{ user.profile_photo or '/static/img/default-avatar.png' }}" 
+                             class="rounded-circle" width="150" height="150" alt="Profile Photo">
+                        <button class="btn btn-sm btn-primary position-absolute bottom-0 end-0" 
+                                onclick="document.getElementById('photo-upload').click()">
+                            <i class="bi bi-camera"></i>
+                        </button>
+                        <input type="file" id="photo-upload" accept="image/*" style="display: none;" onchange="uploadPhoto(this)">
+                    </div>
+                    <h5>{{ user.display_name or user.email }}</h5>
+                    <p class="text-muted">{{ user.role|title }}</p>
+                    
+                    {# Profile Status #}
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="profile-active" 
+                               {{ 'checked' if user.is_active else '' }} onchange="toggleProfileStatus()">
+                        <label class="form-check-label" for="profile-active">
+                            Profile Active
+                        </label>
+                    </div>
+                    
+                    {# Escort Only: Availability Status #}
+                    {% if user.role == 'escort' %}
+                    <div class="mb-3">
+                        <label class="form-label">Availability</label>
+                        <select class="form-select form-select-sm" onchange="updateAvailability(this.value)">
+                            <option value="available" {{ 'selected' if user.availability == 'available' else '' }}>Available</option>
+                            <option value="busy" {{ 'selected' if user.availability == 'busy' else '' }}>Busy</option>
+                            <option value="vacation" {{ 'selected' if user.availability == 'vacation' else '' }}>On Vacation</option>
+                        </select>
+                    </div>
+                    {% endif %}
+                    
+                    {# Profile Completion #}
+                    <div class="progress mb-2" style="height: 20px;">
+                        <div class="progress-bar" role="progressbar" style="width: {{ profile_completion }}%">
+                            {{ profile_completion }}%
+                        </div>
+                    </div>
+                    <small class="text-muted">Profile Completion</small>
+                </div>
+            </div>
+            
+            {# Navigation Pills #}
+            <div class="list-group mt-3">
+                <a href="#personal" class="list-group-item list-group-item-action active" data-bs-toggle="pill">
+                    <i class="bi bi-person"></i> Personal Information
+                </a>
+                <a href="#preferences" class="list-group-item list-group-item-action" data-bs-toggle="pill">
+                    <i class="bi bi-sliders"></i> Preferences
+                </a>
+                <a href="#security" class="list-group-item list-group-item-action" data-bs-toggle="pill">
+                    <i class="bi bi-shield-lock"></i> Security
+                </a>
+                <a href="#ratings" class="list-group-item list-group-item-action" data-bs-toggle="pill">
+                    <i class="bi bi-star"></i> Ratings & Reviews
+                </a>
+            </div>
+        </div>
+        
+        <div class="col-md-9">
+            {# Tab Content #}
+            <div class="tab-content">
+                {# Personal Information Tab #}
+                <div class="tab-pane fade show active" id="personal">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Personal Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="post" action="{{ url_for('update_profile') }}" onsubmit="return validateProfile()">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="display-name" class="form-label">Display Name</label>
+                                        <input type="text" class="form-control" id="display-name" name="display_name" 
+                                               value="{{ user.display_name }}" required maxlength="50">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="email" class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="email" value="{{ user.email }}" readonly>
+                                        <small class="form-text text-muted">Email cannot be changed</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label for="age" class="form-label">Age</label>
+                                        <input type="number" class="form-control" id="age" name="age" 
+                                               value="{{ user.age }}" min="18" max="100" required>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="gender" class="form-label">Gender</label>
+                                        <select class="form-select" id="gender" name="gender">
+                                            <option value="">Prefer not to say</option>
+                                            <option value="male" {{ 'selected' if user.gender == 'male' else '' }}>Male</option>
+                                            <option value="female" {{ 'selected' if user.gender == 'female' else '' }}>Female</option>
+                                            <option value="other" {{ 'selected' if user.gender == 'other' else '' }}>Other</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="location" class="form-label">Location</label>
+                                        <input type="text" class="form-control" id="location" name="location" 
+                                               value="{{ user.location }}" placeholder="City, Country">
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="bio" class="form-label">Bio</label>
+                                    <textarea class="form-control" id="bio" name="bio" rows="4" maxlength="500" 
+                                              placeholder="Tell others about yourself...">{{ user.bio }}</textarea>
+                                    <small class="form-text text-muted">
+                                        <span id="bio-count">{{ user.bio|length if user.bio else 0 }}</span>/500 characters
+                                    </small>
+                                </div>
+                                
+                                {# Escort-specific fields #}
+                                {% if user.role == 'escort' %}
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="hourly-rate" class="form-label">Hourly Rate ($)</label>
+                                        <input type="number" class="form-control" id="hourly-rate" name="hourly_rate" 
+                                               value="{{ user.hourly_rate }}" min="0" step="10">
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="languages" class="form-label">Languages</label>
+                                        <input type="text" class="form-control" id="languages" name="languages" 
+                                               value="{{ user.languages }}" placeholder="English, Mandarin, etc.">
+                                    </div>
+                                </div>
+                                {% endif %}
+                                
+                                <button type="submit" class="btn btn-primary">Save Changes</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                
+                {# Preferences Tab #}
+                <div class="tab-pane fade" id="preferences">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Preferences</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="post" action="{{ url_for('update_preferences') }}">
+                                {# Age Preferences #}
+                                <h6>Age Preferences</h6>
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label for="min-age" class="form-label">Minimum Age</label>
+                                        <input type="number" class="form-control" id="min-age" name="min_age" 
+                                               value="{{ user.min_age or 18 }}" min="18" max="100">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="max-age" class="form-label">Maximum Age</label>
+                                        <input type="number" class="form-control" id="max-age" name="max_age" 
+                                               value="{{ user.max_age or 100 }}" min="18" max="100">
+                                    </div>
+                                </div>
+                                
+                                {# Notification Preferences #}
+                                <h6>Notifications</h6>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="email-notifications" 
+                                           name="email_notifications" {{ 'checked' if user.email_notifications else '' }}>
+                                    <label class="form-check-label" for="email-notifications">
+                                        Email notifications for new bookings
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="message-notifications" 
+                                           name="message_notifications" {{ 'checked' if user.message_notifications else '' }}>
+                                    <label class="form-check-label" for="message-notifications">
+                                        Email notifications for new messages
+                                    </label>
+                                </div>
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="marketing-emails" 
+                                           name="marketing_emails" {{ 'checked' if user.marketing_emails else '' }}>
+                                    <label class="form-check-label" for="marketing-emails">
+                                        Receive promotional emails
+                                    </label>
+                                </div>
+                                
+                                {# Privacy Settings #}
+                                <h6>Privacy</h6>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="show-online-status" 
+                                           name="show_online_status" {{ 'checked' if user.show_online_status else '' }}>
+                                    <label class="form-check-label" for="show-online-status">
+                                        Show online status
+                                    </label>
+                                </div>
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="public-profile" 
+                                           name="public_profile" {{ 'checked' if user.public_profile else '' }}>
+                                    <label class="form-check-label" for="public-profile">
+                                        Make profile publicly searchable
+                                    </label>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-primary">Save Preferences</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                
+                {# Security Tab #}
+                <div class="tab-pane fade" id="security">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Security Settings</h5>
+                        </div>
+                        <div class="card-body">
+                            {# Change Password #}
+                            <h6>Change Password</h6>
+                            <form method="post" action="{{ url_for('change_password') }}" class="mb-4">
+                                <div class="mb-3">
+                                    <label for="current-password" class="form-label">Current Password</label>
+                                    <input type="password" class="form-control" id="current-password" name="current_password" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="new-password" class="form-label">New Password</label>
+                                    <input type="password" class="form-control" id="new-password" name="new_password" 
+                                           required pattern="^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{12,}$">
+                                    <small class="form-text text-muted">
+                                        Minimum 12 characters, including uppercase, lowercase, number, and special character
+                                    </small>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="confirm-password" class="form-label">Confirm New Password</label>
+                                    <input type="password" class="form-control" id="confirm-password" name="confirm_password" required>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Change Password</button>
+                            </form>
+                            
+                            {# Login History #}
+                            <h6>Recent Login Activity</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>IP Address</th>
+                                            <th>Device</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for login in recent_logins %}
+                                        <tr>
+                                            <td>{{ login.timestamp }}</td>
+                                            <td>{{ login.ip_address }}</td>
+                                            <td>{{ login.device }}</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                {# Ratings Tab #}
+                <div class="tab-pane fade" id="ratings">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Ratings & Reviews</h5>
+                        </div>
+                        <div class="card-body">
+                            {# Overall Rating #}
+                            <div class="text-center mb-4">
+                                <h2>{{ user.average_rating|round(1) }}/5.0</h2>
+                                <div class="mb-2">
+                                    {% for i in range(1, 6) %}
+                                        <i class="bi bi-star{{ '-fill' if i <= user.average_rating else '' }}"></i>
+                                    {% endfor %}
+                                </div>
+                                <p class="text-muted">Based on {{ user.total_reviews }} reviews</p>
+                            </div>
+                            
+                            {# Recent Reviews #}
+                            <h6>Recent Reviews</h6>
+                            {% for review in recent_reviews %}
+                            <div class="border-bottom pb-3 mb-3">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <strong>{{ review.reviewer_name }}</strong>
+                                        <div>
+                                            {% for i in range(1, 6) %}
+                                                <i class="bi bi-star{{ '-fill' if i <= review.rating else '' }} small"></i>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <small class="text-muted">{{ review.date }}</small>
+                                </div>
+                                <p class="mt-2 mb-0">{{ review.comment }}</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Character counter for bio
+document.getElementById('bio').addEventListener('input', function() {
+    document.getElementById('bio-count').textContent = this.value.length;
+});
+
+// Photo upload
+function uploadPhoto(input) {
+    if (input.files && input.files[0]) {
+        const formData = new FormData();
+        formData.append('photo', input.files[0]);
+        
+        fetch('/upload-profile-photo', {
+            method: 'POST',
+            body: formData
+        }).then(response => response.json())
+          .then(data => {
+              if (data.success) {
+                  location.reload();
+              }
+          });
+    }
+}
+
+// Toggle profile status
+function toggleProfileStatus() {
+    const isActive = document.getElementById('profile-active').checked;
+    fetch('/toggle-profile-status', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({is_active: isActive})
+    });
+}
+
+// Update availability (escort only)
+function updateAvailability(status) {
+    fetch('/update-availability', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({availability: status})
+    });
+}
+
+// Form validation
+function validateProfile() {
+    const minAge = parseInt(document.getElementById('min-age').value);
+    const maxAge = parseInt(document.getElementById('max-age').value);
+    
+    if (minAge > maxAge) {
+        alert('Minimum age cannot be greater than maximum age');
+        return false;
+    }
+    
+    return true;
+}
+</script>
+{% endblock %}
