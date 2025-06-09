@@ -1,23 +1,32 @@
-from entities.user import User
+from data_sources.repositories import UserRepository
 
 
 class AuthController:
-    def __init__(self):
-        self.users = [User("user@example.com", "securepassword")]
+    def __init__(self, db_connector):
+        self.user_repo = UserRepository(db_connector)
 
     def authenticate(self, email, password):
-        for user in self.users:
-            if user.email == email and user.check_password(password):
-                return True
-        return False
+        """Authenticate user and return user data"""
+        return self.user_repo.authenticate_user(email, password)
 
-    def register(self, email, password):
-        # Check if user already exists
-        if any(user.email == email for user in self.users):
-            # Registration failed: user exists.
-            return False
+    def register(self, email, password, role="seeker"):
+        """Register a new user"""
+        user_id = self.user_repo.create_user(email, password, role)
+        return user_id is not None
+    
+    def get_user_by_id(self, user_id):
+        """Get user by ID"""
+        return self.user_repo.get_user_by_id(user_id)
+    
+    def update_profile(self, user_id, **kwargs):
+        """Update user profile"""
+        return self.user_repo.update_profile(user_id, **kwargs)
+    
+    def change_password(self, user_id, new_password):
+        """Change user password"""
+        return self.user_repo.change_password(user_id, new_password)
+    
+    def get_user_stats(self, user_id):
+        """Get user statistics"""
+        return self.user_repo.get_user_stats(user_id)
 
-        # Create new user
-        new_user = User(email, password)
-        self.users.append(new_user)
-        return True

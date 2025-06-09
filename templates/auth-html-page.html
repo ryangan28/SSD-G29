@@ -14,7 +14,8 @@
                 {# Login Form (Default) #}
                 <div id="login-form" class="auth-form">
                     <h2 class="text-center mb-4">Welcome Back</h2>
-                    <form method="post" action="{{ url_for('login') }}">
+                    <form method="post" action="{{ url_for('auth_page') }}">
+                        <input type="hidden" name="action" value="login">
                         <div class="mb-3">
                             <label for="login-email" class="form-label">Email</label>
                             <input type="email" name="email" class="form-control" id="login-email" required>
@@ -23,9 +24,9 @@
                             <label for="login-password" class="form-label">Password</label>
                             <input type="password" name="password" class="form-control" id="login-password" required>
                         </div>
-                        <div class="mb-3">
+                        {# <div class="mb-3">
                             <div class="g-recaptcha" data-sitekey="your-site-key"></div>
-                        </div>
+                        </div> #}
                         <div class="mb-3">
                             <div class="form-check">
                                 <input type="checkbox" name="remember" class="form-check-input" id="remember-me">
@@ -43,7 +44,8 @@
                 {# Registration Form #}
                 <div id="register-form" class="auth-form" style="display: none;">
                     <h2 class="text-center mb-4">Create Account</h2>
-                    <form method="post" action="{{ url_for('register') }}" onsubmit="return validateRegistration()">
+                    <form method="post" action="{{ url_for('auth_page') }}" onsubmit="return validateRegistration()">
+                        <input type="hidden" name="action" value="register">
                         <div class="mb-3">
                             <label class="form-label">I want to be a:</label>
                             <div class="btn-group w-100" role="group">
@@ -72,9 +74,9 @@
                             <label for="reg-confirm-password" class="form-label">Confirm Password</label>
                             <input type="password" name="confirm_password" class="form-control" id="reg-confirm-password" required>
                         </div>
-                        <div class="mb-3">
+                        {# <div class="mb-3">
                             <div class="g-recaptcha" data-sitekey="your-site-key"></div>
-                        </div>
+                        </div> #}
                         <div class="mb-3">
                             <div class="form-check">
                                 <input type="checkbox" class="form-check-input" id="terms" required>
@@ -95,14 +97,15 @@
                 <div id="reset-form" class="auth-form" style="display: none;">
                     <h2 class="text-center mb-4">Reset Password</h2>
                     <p class="text-center text-muted">Enter your email address and we'll send you a password reset link.</p>
-                    <form method="post" action="{{ url_for('reset_password_request') }}">
+                    <form method="post" action="{{ url_for('auth_page') }}">
+                        <input type="hidden" name="action" value="reset">
                         <div class="mb-3">
                             <label for="reset-email" class="form-label">Email</label>
                             <input type="email" name="email" class="form-control" id="reset-email" required>
                         </div>
-                        <div class="mb-3">
+                        {# <div class="mb-3">
                             <div class="g-recaptcha" data-sitekey="your-site-key"></div>
-                        </div>
+                        </div> #}
                         <button type="submit" class="btn btn-primary w-100">Send Reset Link</button>
                         <div class="text-center mt-3">
                             <a href="#" onclick="showForm('login')">Back to Login</a>
@@ -304,5 +307,5 @@ if (document.cookie.includes('session=')) {
 </script>
 
 {# Google reCAPTCHA #}
-<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+{# <script src="https://www.google.com/recaptcha/api.js" async defer></script> #}
 {% endblock %}

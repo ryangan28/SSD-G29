@@ -62,38 +62,60 @@ def index():
         version = "Unavailable"
     return render_template("index.html", version=version)
 
+@app.route("/auth", methods=["GET", "POST"])
+def auth_page():
+    """Unified authentication page for login and registration"""
+    if request.method == "POST":
+        action = request.form.get("action", "login")
+        
+        if action == "login":
+            email = request.form.get("email")
+            password = request.form.get("password")
+            user = auth_controller.authenticate(email, password)
+            if user:
+                session['user_id'] = user.get('id')
+                session['user_email'] = user.get('email')
+                session['user_role'] = user.get('role', 'seeker')
+                flash("Login successful!", "success")
+                return redirect(url_for("dashboard_page"))
+            flash("Invalid email or password", "danger")
+            
+        elif action == "register":
+            email = request.form.get("email")
+            pwd = request.form.get("password")
+            cpwd = request.form.get("confirm_password")
+            role = request.form.get("role", "seeker")
+            
+            if pwd != cpwd:
+                flash("Passwords do not match", "danger")
+            elif auth_controller.register(email, pwd, role):
+                flash("Account created successfully! Please log in.", "success")
+                return redirect(url_for("auth_page"))
+            else:
+                flash("Email already registered or registration failed", "danger")
+                
+        elif action == "reset":
+            email = request.form.get("email")
+            # TODO: Implement password reset functionality
+            flash("Password reset link sent to your email (feature coming soon)", "info")
+    
+    return render_template("auth-html-page.html")
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    """Redirect to unified auth page"""
     if request.method == "POST":
-        email = request.form.get("email")
-        password = request.form.get("password")
-        user = auth_controller.authenticate(email, password)
-        if user:
-            session['user_id'] = user.get('id')
-            session['user_email'] = user.get('email')
-            session['user_role'] = user.get('role', 'seeker')
-            flash("Login successful!", "success")
-            return redirect(url_for("dashboard_page"))
-        flash("Invalid email or password", "danger")
-    return render_template("login.html")
+        # Handle POST requests by forwarding to auth_page
+        return auth_page()
+    return redirect(url_for("auth_page"))
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
+    """Redirect to unified auth page"""
     if request.method == "POST":
-        email = request.form.get("email")
-        pwd = request.form.get("password")
-        cpwd = request.form.get("confirm_password")
-        role = request.form.get("role", "seeker")  # Default to seeker
-        
-        if pwd != cpwd:
-            flash("Passwords do not match", "danger")
-            return render_template("register.html")
-        
-        if auth_controller.register(email, pwd, role):
-            flash("Account created. Please log in.", "success")
-            return redirect(url_for("login"))
-        flash("Email already registered", "danger")
-    return render_template("register.html")
+        # Handle POST requests by forwarding to auth_page
+        return auth_page()
+    return redirect(url_for("auth_page"))
 
 @app.route("/logout")
 def logout():
@@ -157,9 +179,7 @@ def change_password():
     return redirect(url_for("profile_page"))
 
 # --- Template preview routes (development only) ---
-@app.route("/auth")
-def auth_page():
-    return render_template("auth-html-page.html")
+# NOTE: Removed duplicate @app.route("/auth") to fix route conflict
 
 @app.route("/profile")
 def profile_page():
