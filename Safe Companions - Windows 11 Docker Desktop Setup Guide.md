@@ -289,7 +289,7 @@ docker-compose logs -f --tail=100
 - **Database**: localhost:8888
 
 ### Default Credentials
-- **Admin**: admin@safecompanions.com / admin123
+- **Admin**: admin@safecompanions.com / password123
 - **Escort**: escort@example.com / password123
 - **Seeker**: seeker@example.com / password123
 
