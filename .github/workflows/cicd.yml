@@ -18,13 +18,13 @@ jobs:
       postgres:
         image: postgres:bullseye
         env:
-          POSTGRES_USER: ${{ secrets.DATABASE_USERNAME }}
-          POSTGRES_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
-          POSTGRES_DB: ${{ secrets.DATABASE_NAME }}
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U ${{ secrets.DATABASE_USERNAME }}"
+          --health-cmd="pg_isready -U testuser"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
@@ -64,22 +64,23 @@ jobs:
 
       - name: Initialize test database schema
         env:
-          PGPASSWORD: ${{ secrets.DATABASE_PASSWORD }}
-          DATABASE_USERNAME: ${{ secrets.DATABASE_USERNAME }}
-          DATABASE_NAME: ${{ secrets.DATABASE_NAME }}
-          DATABASE_HOST: ${{ secrets.DATABASE_HOST }}
+          PGPASSWORD: testpassword
+          DATABASE_USERNAME: testuser
+          DATABASE_NAME: testdb
+          DATABASE_HOST: localhost
         run: |
-          psql -h ${{ secrets.DATABASE_HOST }} -U ${{ secrets.DATABASE_USERNAME }} -d ${{ secrets.DATABASE_NAME }} <<-EOF
+          psql -h "$DATABASE_HOST" -U "$DATABASE_USERNAME" -d "$DATABASE_NAME" <<-EOF
             CREATE TABLE IF NOT EXISTS users (
-            id SERIAL PRIMARY KEY,
-            email VARCHAR(255) UNIQUE NOT NULL,
-            password_hash VARCHAR(255) NOT NULL
+              id SERIAL PRIMARY KEY,
+              email VARCHAR(255) UNIQUE NOT NULL,
+              password_hash VARCHAR(255) NOT NULL
             );
           EOF
+        shell: bash
 
       - name: Run tests
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: postgres://testuser:testpassword@postgres:5432/testdb
         run: |
           pytest tests/
 
@@ -106,7 +107,7 @@ jobs:
 
       - name: SSH and deploy
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << EOF
           cd ${{ secrets.DEPLOY_DIR }}
           git pull origin main
           docker compose --env-file .env.production down
